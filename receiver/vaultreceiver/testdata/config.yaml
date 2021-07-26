@@ -1,0 +1,19 @@
+receivers:
+  vaultReceiver:
+    endpoint: http://127.0.0.1:1235/
+    collection_interval: 2s
+    timeout: 20s
+
+#processors:
+#  nop:
+
+exporters:
+  logging:
+    loglevel: debug
+
+service:
+  pipelines:
+    metrics:
+      receivers: [vaultReceiver]
+#      processors: [nop]
+      exporters: [logging]
