@@ -15,6 +15,7 @@
 package awsemfexporter
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -150,7 +151,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 
 			for i := 0; i < metrics.Len(); i++ {
 				metric := metrics.At(i)
-				addToGroupedMetric(&metric, groupedMetrics, metadata, zap.NewNop(), nil)
+				addToGroupedMetric(&metric, groupedMetrics, metadata, zap.NewNop(), nil, nil)
 			}
 
 			expectedLabels := map[string]string{
@@ -198,7 +199,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 
 		for i := 0; i < metrics.Len(); i++ {
 			metric := metrics.At(i)
-			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil)
+			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil, nil)
 		}
 
 		assert.Equal(t, 1, len(groupedMetrics))
@@ -261,7 +262,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 
 		for i := 0; i < metrics.Len(); i++ {
 			metric := metrics.At(i)
-			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil)
+			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil, nil)
 		}
 
 		assert.Equal(t, 3, len(groupedMetrics))
@@ -308,7 +309,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 			},
 			instrumentationLibraryName: instrumentationLibName,
 		}
-		addToGroupedMetric(&metric, groupedMetrics, metricMetadata1, logger, nil)
+		addToGroupedMetric(&metric, groupedMetrics, metricMetadata1, logger, nil, nil)
 
 		metricMetadata2 := cWMetricMetadata{
 			groupedMetricMetadata: groupedMetricMetadata{
@@ -319,7 +320,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 			},
 			instrumentationLibraryName: instrumentationLibName,
 		}
-		addToGroupedMetric(&metric, groupedMetrics, metricMetadata2, logger, nil)
+		addToGroupedMetric(&metric, groupedMetrics, metricMetadata2, logger, nil, nil)
 
 		assert.Equal(t, 2, len(groupedMetrics))
 		seenLogGroup1 := false
@@ -374,7 +375,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 
 		for i := 0; i < metrics.Len(); i++ {
 			metric := metrics.At(i)
-			addToGroupedMetric(&metric, groupedMetrics, metadata, obsLogger, nil)
+			addToGroupedMetric(&metric, groupedMetrics, metadata, obsLogger, nil, nil)
 		}
 		assert.Equal(t, 1, len(groupedMetrics))
 
@@ -403,11 +404,11 @@ func TestAddToGroupedMetric(t *testing.T) {
 		metric := rms.AppendEmpty().InstrumentationLibraryMetrics().AppendEmpty().Metrics().AppendEmpty()
 		metric.SetName("foo")
 		metric.SetUnit("Count")
-		metric.SetDataType(pdata.MetricDataTypeIntHistogram)
+		metric.SetDataType(pdata.MetricDataTypeNone)
 
 		obs, logs := observer.New(zap.WarnLevel)
 		obsLogger := zap.New(obs)
-		addToGroupedMetric(&metric, groupedMetrics, metadata, obsLogger, nil)
+		addToGroupedMetric(&metric, groupedMetrics, metadata, obsLogger, nil, nil)
 		assert.Equal(t, 0, len(groupedMetrics))
 
 		// Test output warning logs
@@ -415,7 +416,7 @@ func TestAddToGroupedMetric(t *testing.T) {
 			{
 				Entry: zapcore.Entry{Level: zap.WarnLevel, Message: "Unhandled metric data type."},
 				Context: []zapcore.Field{
-					zap.String("DataType", "IntHistogram"),
+					zap.String("DataType", "None"),
 					zap.String("Name", "foo"),
 					zap.String("Unit", "Count"),
 				},
@@ -427,8 +428,40 @@ func TestAddToGroupedMetric(t *testing.T) {
 
 	t.Run("Nil metric", func(t *testing.T) {
 		groupedMetrics := make(map[interface{}]*groupedMetric)
-		addToGroupedMetric(nil, groupedMetrics, metadata, logger, nil)
+		addToGroupedMetric(nil, groupedMetrics, metadata, logger, nil, nil)
 		assert.Equal(t, 0, len(groupedMetrics))
+	})
+
+}
+
+func TestAddKubernetesWrapper(t *testing.T) {
+	t.Run("Test basic creation", func(t *testing.T) {
+		dockerObj := struct {
+			ContainerID string `json:"container_id"`
+		}{
+			ContainerID: "Container mccontainter the third",
+		}
+		expectedCreatedObj := struct {
+			ContainerName string      `json:"container_name"`
+			Docker        interface{} `json:"docker"`
+			Host          string      `json:"host"`
+			PodID         string      `json:"pod_id"`
+		}{
+			ContainerName: "container mccontainer",
+			Docker:        dockerObj,
+			Host:          "hosty de la host",
+			PodID:         "Le id de Pod",
+		}
+
+		inputs := make(map[string]string)
+		inputs["container_id"] = "Container mccontainter the third"
+		inputs["container"] = "container mccontainer"
+		inputs["NodeName"] = "hosty de la host"
+		inputs["PodId"] = "Le id de Pod"
+
+		jsonBytes, _ := json.Marshal(expectedCreatedObj)
+		addKubernetesWrapper(inputs)
+		assert.Equal(t, string(jsonBytes), inputs["kubernetes"], "The created and expected objects should be the same")
 	})
 }
 
@@ -464,7 +497,7 @@ func BenchmarkAddToGroupedMetric(b *testing.B) {
 		groupedMetrics := make(map[interface{}]*groupedMetric)
 		for i := 0; i < numMetrics; i++ {
 			metric := metrics.At(i)
-			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil)
+			addToGroupedMetric(&metric, groupedMetrics, metadata, logger, nil, nil)
 		}
 	}
 }

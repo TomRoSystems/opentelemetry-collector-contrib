@@ -19,7 +19,6 @@ import (
 	"context"
 	"time"
 
-	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/collector/model/pdata"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -29,9 +28,9 @@ import (
 	apitrace "go.opentelemetry.io/otel/trace"
 )
 
-func pdataResourceSpansToOTSpanData(rs pdata.ResourceSpans) []cloudtrace.ReadOnlySpan {
+func pdataResourceSpansToOTSpanData(rs pdata.ResourceSpans) []sdktrace.ReadOnlySpan {
 	resource := rs.Resource()
-	var sds []cloudtrace.ReadOnlySpan
+	var sds []sdktrace.ReadOnlySpan
 	ilss := rs.InstrumentationLibrarySpans()
 	for i := 0; i < ilss.Len(); i++ {
 		ils := ilss.At(i)
@@ -144,15 +143,15 @@ func pdataAttributesToOTAttributes(attrs pdata.AttributeMap, resource pdata.Reso
 	return otAttrs
 }
 
-func pdataLinksToOTLinks(links pdata.SpanLinkSlice) []apitrace.Link {
+func pdataLinksToOTLinks(links pdata.SpanLinkSlice) []sdktrace.Link {
 	size := links.Len()
-	otLinks := make([]apitrace.Link, 0, size)
+	otLinks := make([]sdktrace.Link, 0, size)
 	for i := 0; i < size; i++ {
 		link := links.At(i)
 		sc := apitrace.SpanContextConfig{}
 		sc.TraceID = link.TraceID().Bytes()
 		sc.SpanID = link.SpanID().Bytes()
-		otLinks = append(otLinks, apitrace.Link{
+		otLinks = append(otLinks, sdktrace.Link{
 			SpanContext: apitrace.NewSpanContext(sc),
 			Attributes:  pdataAttributesToOTAttributes(link.Attributes(), pdata.NewResource()),
 		})

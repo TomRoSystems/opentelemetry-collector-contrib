@@ -31,6 +31,7 @@ import (
 	"go.opentelemetry.io/collector/model/pdata"
 	"go.opentelemetry.io/collector/translator/conventions"
 	"go.opentelemetry.io/collector/translator/internaldata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )
@@ -102,7 +103,7 @@ func newGoogleCloudTracesExporter(cfg *Config, set component.ExporterCreateSetti
 	}
 	topts = append(topts, cloudtrace.WithTraceClientOptions(copts))
 
-	exp, err := cloudtrace.NewExporter(topts...)
+	exp, err := cloudtrace.New(topts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating GoogleCloud Trace exporter: %w", err)
 	}
@@ -236,13 +237,13 @@ func exportAdditionalLabels(mds []*agentmetricspb.ExportMetricsServiceRequest) [
 func (te *traceExporter) pushTraces(ctx context.Context, td pdata.Traces) error {
 	var errs []error
 	resourceSpans := td.ResourceSpans()
-	spans := make([]cloudtrace.ReadOnlySpan, 0, td.SpanCount())
+	spans := make([]sdktrace.ReadOnlySpan, 0, td.SpanCount())
 	for i := 0; i < resourceSpans.Len(); i++ {
 		sd := pdataResourceSpansToOTSpanData(resourceSpans.At(i))
 		spans = append(spans, sd...)
 	}
 
-	err := te.texporter.ExportCustomSpans(ctx, spans)
+	err := te.texporter.ExportSpans(ctx, spans)
 	if err != nil {
 		errs = append(errs, err)
 	}

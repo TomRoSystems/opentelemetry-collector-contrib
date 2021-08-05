@@ -3,10 +3,11 @@ module github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumul
 go 1.16
 
 require (
+	github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/metrics v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.7.0
-	go.opentelemetry.io/collector v0.29.1-0.20210712235908-f9dacb8402fe
-	go.opentelemetry.io/collector/model v0.0.0-00010101000000-000000000000
+	go.opentelemetry.io/collector v0.31.1-0.20210804191544-3cfe4f8c5d3e
+	go.opentelemetry.io/collector/model v0.31.1-0.20210804191544-3cfe4f8c5d3e
 	go.uber.org/zap v1.18.1
 )
 
-replace go.opentelemetry.io/collector/model => go.opentelemetry.io/collector/model v0.0.0-20210712235908-f9dacb8402fe
+replace github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/metrics => ./../../internal/aws/metrics
